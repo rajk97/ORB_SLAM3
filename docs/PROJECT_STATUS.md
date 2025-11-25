@@ -73,19 +73,14 @@ Set up and optimize ORB-SLAM3's **Mono-Inertial VIO pipeline** for XR (AR/VR) ap
 
 ## 🚀 Commands to Replicate
 
-### 1. Set Environment Variables
+### Quick Copy-Paste Commands
+
+#### WITH GUI (Visuals On)
 
 ```bash
-cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3
-
-export LD_LIBRARY_PATH="./lib:./Thirdparty/DBoW2/lib:./Thirdparty/g2o/lib:/home/raj/Documents/Projects/system_software/opencv/install/lib:/home/raj/Documents/Projects/system_software/pangolin/install/lib"
-
-export DISPLAY=:1  # For GUI (check with 'who' command for your display)
-```
-
-### 2. Run Mono-Inertial on V1_01_easy
-
-```bash
+cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3 && \
+export LD_LIBRARY_PATH="./lib:./Thirdparty/DBoW2/lib:./Thirdparty/g2o/lib:/home/raj/Documents/Projects/system_software/opencv/install/lib:/home/raj/Documents/Projects/system_software/pangolin/install/lib" && \
+export DISPLAY=:1 && \
 ./Examples/Monocular-Inertial/mono_inertial_euroc \
   ./Vocabulary/ORBvoc.txt \
   ./Examples/Monocular-Inertial/EuRoC.yaml \
@@ -94,7 +89,55 @@ export DISPLAY=:1  # For GUI (check with 'who' command for your display)
   dataset-V101_mono_inertial
 ```
 
-### 3. Expected Output
+#### WITHOUT GUI (Headless)
+
+```bash
+cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3 && \
+export LD_LIBRARY_PATH="./lib:./Thirdparty/DBoW2/lib:./Thirdparty/g2o/lib:/home/raj/Documents/Projects/system_software/opencv/install/lib:/home/raj/Documents/Projects/system_software/pangolin/install/lib" && \
+export DISPLAY=:99 && \
+./Examples/Monocular-Inertial/mono_inertial_euroc \
+  ./Vocabulary/ORBvoc.txt \
+  ./Examples/Monocular-Inertial/EuRoC.yaml \
+  /home/raj/Documents/Projects/datasets/EuRoC/V101 \
+  ./Examples/Monocular-Inertial/EuRoC_TimeStamps/V101.txt \
+  dataset-V101_mono_inertial
+```
+
+> **Note:** For headless mode, ensure Xvfb is running: `Xvfb :99 -screen 0 1024x768x24 &`
+
+---
+
+### Other Datasets
+
+#### V1_02_medium (WITH GUI)
+```bash
+cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3 && \
+export LD_LIBRARY_PATH="./lib:./Thirdparty/DBoW2/lib:./Thirdparty/g2o/lib:/home/raj/Documents/Projects/system_software/opencv/install/lib:/home/raj/Documents/Projects/system_software/pangolin/install/lib" && \
+export DISPLAY=:1 && \
+./Examples/Monocular-Inertial/mono_inertial_euroc \
+  ./Vocabulary/ORBvoc.txt \
+  ./Examples/Monocular-Inertial/EuRoC.yaml \
+  /home/raj/Documents/Projects/datasets/EuRoC/V102 \
+  ./Examples/Monocular-Inertial/EuRoC_TimeStamps/V102.txt \
+  dataset-V102_mono_inertial
+```
+
+#### V1_02_medium (WITHOUT GUI)
+```bash
+cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3 && \
+export LD_LIBRARY_PATH="./lib:./Thirdparty/DBoW2/lib:./Thirdparty/g2o/lib:/home/raj/Documents/Projects/system_software/opencv/install/lib:/home/raj/Documents/Projects/system_software/pangolin/install/lib" && \
+export DISPLAY=:99 && \
+./Examples/Monocular-Inertial/mono_inertial_euroc \
+  ./Vocabulary/ORBvoc.txt \
+  ./Examples/Monocular-Inertial/EuRoC.yaml \
+  /home/raj/Documents/Projects/datasets/EuRoC/V102 \
+  ./Examples/Monocular-Inertial/EuRoC_TimeStamps/V102.txt \
+  dataset-V102_mono_inertial
+```
+
+---
+
+### Expected Output
 
 ```
 New Map created with ~400-500 points
@@ -102,18 +145,13 @@ start VIBA 1
 end VIBA 1
 start VIBA 2
 end VIBA 2
+Shutdown
+Saving trajectory to f_dataset-V101_mono_inertial.txt ...
 ```
 
-After completion:
+### Output Files
 - `f_dataset-V101_mono_inertial.txt` - Full trajectory (TUM format)
 - `kf_dataset-V101_mono_inertial.txt` - Keyframe trajectory
-
-### 4. Headless Mode (No GUI)
-
-```bash
-export DISPLAY=:99  # Use Xvfb virtual display
-# Or start Xvfb: Xvfb :99 -screen 0 1024x768x24 &
-```
 
 ---
 
