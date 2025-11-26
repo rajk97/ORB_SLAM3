@@ -116,6 +116,7 @@ void LocalMapping::Run()
             if(!CheckNewKeyFrames())
             {
                 // Find more matches in neighbor keyframes and fuse point duplications
+                ZoneScopedN("SearchInNeighbors");
                 SearchInNeighbors();
             }
 
@@ -193,6 +194,7 @@ void LocalMapping::Run()
                 // Initialize IMU here
                 if(!mpCurrentKeyFrame->GetMap()->isImuInitialized() && mbInertial)
                 {
+                    ZoneScopedNC("InitializeIMU", 0xFF00FF);
                     if (mbMonocular)
                         InitializeIMU(1e2, 1e10, true);
                     else
@@ -201,7 +203,10 @@ void LocalMapping::Run()
 
 
                 // Check redundant local Keyframes
+            {
+                ZoneScopedN("KeyFrameCulling");
                 KeyFrameCulling();
+            }
 
 #ifdef REGISTER_TIMES
                 std::chrono::steady_clock::time_point time_EndKFCulling = std::chrono::steady_clock::now();
@@ -217,6 +222,7 @@ void LocalMapping::Run()
                         if(!mpCurrentKeyFrame->GetMap()->GetIniertialBA1()){
                             if (mTinit>5.0f)
                             {
+                                ZoneScopedNC("VIBA 1", 0xFFDD00);
                                 cout << "start VIBA 1" << endl;
                                 mpCurrentKeyFrame->GetMap()->SetIniertialBA1();
                                 if (mbMonocular)
@@ -229,6 +235,7 @@ void LocalMapping::Run()
                         }
                         else if(!mpCurrentKeyFrame->GetMap()->GetIniertialBA2()){
                             if (mTinit>15.0f){
+                                ZoneScopedNC("VIBA 2", 0xFFBB00);
                                 cout << "start VIBA 2" << endl;
                                 mpCurrentKeyFrame->GetMap()->SetIniertialBA2();
                                 if (mbMonocular)
@@ -248,12 +255,14 @@ void LocalMapping::Run()
                                 (mTinit>55.0f && mTinit<55.5f)||
                                 (mTinit>65.0f && mTinit<65.5f)||
                                 (mTinit>75.0f && mTinit<75.5f))){
+                            ZoneScopedN("ScaleRefinement");
                             if (mbMonocular)
                                 ScaleRefinement();
                         }
                     }
                 }
             }
+            FrameMark; // Mark end of LocalMapping iteration
 
 #ifdef REGISTER_TIMES
             vdLBASync_ms.push_back(timeKFCulling_ms);

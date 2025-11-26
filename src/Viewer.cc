@@ -19,6 +19,7 @@
 
 #include "Viewer.h"
 #include <pangolin/pangolin.h>
+#include <tracy/Tracy.hpp>
 
 #include <mutex>
 
@@ -221,6 +222,7 @@ void Viewer::Run()
     cout << "Starting the Viewer" << endl;
     while(1)
     {
+        ZoneScopedNC("Viewer Render Loop", 0x00FF88);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         mpMapDrawer->GetCurrentOpenGLCameraMatrix(Twc,Ow);
@@ -313,29 +315,38 @@ void Viewer::Run()
         if(menuShowKeyFrames || menuShowGraph || menuShowInertialGraph || menuShowOptLba)
             mpMapDrawer->DrawKeyFrames(menuShowKeyFrames,menuShowGraph, menuShowInertialGraph, menuShowOptLba);
         if(menuShowPoints)
+        {
+            ZoneScopedN("Draw MapPoints");
             mpMapDrawer->DrawMapPoints();
+        }
 
         pangolin::FinishFrame();
 
         cv::Mat toShow;
-        cv::Mat im = mpFrameDrawer->DrawFrame(trackedImageScale);
-
-        if(both){
-            cv::Mat imRight = mpFrameDrawer->DrawRightFrame(trackedImageScale);
-            cv::hconcat(im,imRight,toShow);
-        }
-        else{
-            toShow = im;
-        }
-
-        if(mImageViewerScale != 1.f)
         {
-            int width = toShow.cols * mImageViewerScale;
-            int height = toShow.rows * mImageViewerScale;
-            cv::resize(toShow, toShow, cv::Size(width, height));
+            ZoneScopedN("Draw Frame");
+            cv::Mat im = mpFrameDrawer->DrawFrame(trackedImageScale);
+
+            if(both){
+                cv::Mat imRight = mpFrameDrawer->DrawRightFrame(trackedImageScale);
+                cv::hconcat(im,imRight,toShow);
+            }
+            else{
+                toShow = im;
+            }
+
+            if(mImageViewerScale != 1.f)
+            {
+                int width = toShow.cols * mImageViewerScale;
+                int height = toShow.rows * mImageViewerScale;
+                cv::resize(toShow, toShow, cv::Size(width, height));
+            }
         }
 
-        cv::imshow("ORB-SLAM3: Current Frame",toShow);
+        {
+            ZoneScopedN("Display Frame");
+            cv::imshow("ORB-SLAM3: Current Frame",toShow);
+        }
         cv::waitKey(mT);
 
         if(menuReset)
@@ -378,6 +389,8 @@ void Viewer::Run()
 
         if(CheckFinish())
             break;
+
+        FrameMark; // Mark end of Viewer frame
     }
 
     SetFinish();

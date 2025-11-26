@@ -280,7 +280,10 @@ void LoopClosing::Run()
                         nLoop += 1;
 
 #endif
-                        CorrectLoop();
+                        {
+                            ZoneScopedNC("Loop Correction", 0xFF0088);
+                            CorrectLoop();
+                        }
 #ifdef REGISTER_TIMES
                         std::chrono::steady_clock::time_point time_EndLoop = std::chrono::steady_clock::now();
 
@@ -310,6 +313,8 @@ void LoopClosing::Run()
         if(CheckFinish()){
             break;
         }
+
+        FrameMark; // Mark end of LoopClosing iteration
 
         usleep(5000);
     }
