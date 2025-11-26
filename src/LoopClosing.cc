@@ -24,6 +24,7 @@
 #include "Optimizer.h"
 #include "ORBmatcher.h"
 #include "G2oTypes.h"
+#include <tracy/Tracy.hpp>
 
 #include<mutex>
 #include<thread>
@@ -93,6 +94,7 @@ void LoopClosing::Run()
 
     while(1)
     {
+        ZoneScopedN("LoopClosing Loop");
 
         //NEW LOOP AND MERGE DETECTION ALGORITHM
         //----------------------------
@@ -109,7 +111,11 @@ void LoopClosing::Run()
             std::chrono::steady_clock::time_point time_StartPR = std::chrono::steady_clock::now();
 #endif
 
-            bool bFindedRegion = NewDetectCommonRegions();
+            bool bFindedRegion;
+            {
+                ZoneScopedN("Loop/Merge Detection");
+                bFindedRegion = NewDetectCommonRegions();
+            }
 
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_EndPR = std::chrono::steady_clock::now();
@@ -177,10 +183,13 @@ void LoopClosing::Run()
                         nMerges += 1;
 #endif
                         // TODO UNCOMMENT
-                        if (mpTracker->mSensor==System::IMU_MONOCULAR ||mpTracker->mSensor==System::IMU_STEREO || mpTracker->mSensor==System::IMU_RGBD)
-                            MergeLocal2();
-                        else
-                            MergeLocal();
+                        {
+                            ZoneScopedN("Map Merge");
+                            if (mpTracker->mSensor==System::IMU_MONOCULAR ||mpTracker->mSensor==System::IMU_STEREO || mpTracker->mSensor==System::IMU_RGBD)
+                                MergeLocal2();
+                            else
+                                MergeLocal();
+                        }
 
 #ifdef REGISTER_TIMES
                         std::chrono::steady_clock::time_point time_EndMerge = std::chrono::steady_clock::now();

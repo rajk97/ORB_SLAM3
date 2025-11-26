@@ -23,6 +23,7 @@
 #include "Optimizer.h"
 #include "Converter.h"
 #include "GeometricTools.h"
+#include <tracy/Tracy.hpp>
 
 #include<mutex>
 #include<chrono>
@@ -67,6 +68,7 @@ void LocalMapping::Run()
 
     while(1)
     {
+        ZoneScopedN("LocalMapping Loop");
         // Tracking will see that Local Mapping is busy
         SetAcceptKeyFrames(false);
 
@@ -80,7 +82,10 @@ void LocalMapping::Run()
             std::chrono::steady_clock::time_point time_StartProcessKF = std::chrono::steady_clock::now();
 #endif
             // BoW conversion and insertion in Map
-            ProcessNewKeyFrame();
+            {
+                ZoneScopedN("ProcessNewKeyFrame");
+                ProcessNewKeyFrame();
+            }
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_EndProcessKF = std::chrono::steady_clock::now();
 
@@ -89,7 +94,10 @@ void LocalMapping::Run()
 #endif
 
             // Check recent MapPoints
-            MapPointCulling();
+            {
+                ZoneScopedN("MapPointCulling");
+                MapPointCulling();
+            }
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_EndMPCulling = std::chrono::steady_clock::now();
 
@@ -98,7 +106,10 @@ void LocalMapping::Run()
 #endif
 
             // Triangulate new MapPoints
-            CreateNewMapPoints();
+            {
+                ZoneScopedN("CreateNewMapPoints");
+                CreateNewMapPoints();
+            }
 
             mbAbortBA = false;
 
@@ -145,12 +156,14 @@ void LocalMapping::Run()
                             }
                         }
 
+                        ZoneScopedN("Local Inertial BA");
                         bool bLarge = ((mpTracker->GetMatchesInliers()>75)&&mbMonocular)||((mpTracker->GetMatchesInliers()>100)&&!mbMonocular);
                         Optimizer::LocalInertialBA(mpCurrentKeyFrame, &mbAbortBA, mpCurrentKeyFrame->GetMap(),num_FixedKF_BA,num_OptKF_BA,num_MPs_BA,num_edges_BA, bLarge, !mpCurrentKeyFrame->GetMap()->GetIniertialBA2());
                         b_doneLBA = true;
                     }
                     else
                     {
+                        ZoneScopedN("Local Bundle Adjustment");
                         Optimizer::LocalBundleAdjustment(mpCurrentKeyFrame,&mbAbortBA, mpCurrentKeyFrame->GetMap(),num_FixedKF_BA,num_OptKF_BA,num_MPs_BA,num_edges_BA);
                         b_doneLBA = true;
                     }

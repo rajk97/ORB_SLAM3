@@ -24,6 +24,7 @@
 #include "Converter.h"
 #include "G2oTypes.h"
 #include "Optimizer.h"
+#include <tracy/Tracy.hpp>
 #include "Pinhole.h"
 #include "KannalaBrandt8.h"
 #include "MLPnPsolver.h"
@@ -1793,6 +1794,7 @@ void Tracking::ResetFrameIMU()
 
 void Tracking::Track()
 {
+    ZoneScoped;
 
     if (bStepByStep)
     {
@@ -1868,6 +1870,7 @@ void Tracking::Track()
 
     if ((mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD) && !mbCreatedMap)
     {
+        ZoneScopedN("IMU Preintegration");
 #ifdef REGISTER_TIMES
         std::chrono::steady_clock::time_point time_StartPreIMU = std::chrono::steady_clock::now();
 #endif
@@ -1898,6 +1901,7 @@ void Tracking::Track()
 
     if(mState==NOT_INITIALIZED)
     {
+        ZoneScopedN("Initialization");
         if(mSensor==System::STEREO || mSensor==System::RGBD || mSensor==System::IMU_STEREO || mSensor==System::IMU_RGBD)
         {
             StereoInitialization();
@@ -1938,17 +1942,20 @@ void Tracking::Track()
             // you explicitly activate the "only tracking" mode.
             if(mState==OK)
             {
+                ZoneScopedN("Track - State OK");
 
                 // Local Mapping might have changed some MapPoints tracked in last frame
                 CheckReplacedInLastFrame();
 
                 if((!mbVelocity && !pCurrentMap->isImuInitialized()) || mCurrentFrame.mnId<mnLastRelocFrameId+2)
                 {
+                    ZoneScopedN("TrackReferenceKeyFrame");
                     Verbose::PrintMess("TRACK: Track with respect to the reference KF ", Verbose::VERBOSITY_DEBUG);
                     bOK = TrackReferenceKeyFrame();
                 }
                 else
                 {
+                    ZoneScopedN("TrackWithMotionModel");
                     Verbose::PrintMess("TRACK: Track with motion model", Verbose::VERBOSITY_DEBUG);
                     bOK = TrackWithMotionModel();
                     if(!bOK)

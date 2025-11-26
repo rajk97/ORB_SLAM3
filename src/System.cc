@@ -24,6 +24,7 @@
 #include <pangolin/pangolin.h>
 #include <iomanip>
 #include <openssl/md5.h>
+#include <tracy/Tracy.hpp>
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/string.hpp>
 #include <boost/archive/text_iarchive.hpp>
@@ -398,6 +399,8 @@ Sophus::SE3f System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const
 
 Sophus::SE3f System::TrackMonocular(const cv::Mat &im, const double &timestamp, const vector<IMU::Point>& vImuMeas, string filename)
 {
+    ZoneScoped;
+    FrameMark;
 
     {
         unique_lock<mutex> lock(mMutexReset);
@@ -460,10 +463,17 @@ Sophus::SE3f System::TrackMonocular(const cv::Mat &im, const double &timestamp, 
     }
 
     if (mSensor == System::IMU_MONOCULAR)
+    {
+        ZoneScopedN("IMU Data Processing");
         for(size_t i_imu = 0; i_imu < vImuMeas.size(); i_imu++)
             mpTracker->GrabImuData(vImuMeas[i_imu]);
+    }
 
-    Sophus::SE3f Tcw = mpTracker->GrabImageMonocular(imToFeed,timestamp,filename);
+    Sophus::SE3f Tcw;
+    {
+        ZoneScopedN("Tracking::GrabImageMonocular");
+        Tcw = mpTracker->GrabImageMonocular(imToFeed,timestamp,filename);
+    }
 
     unique_lock<mutex> lock2(mMutexState);
     mTrackingState = mpTracker->mState;

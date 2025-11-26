@@ -42,6 +42,14 @@ find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
 find_package(realsense2)
 
+# Tracy Profiler
+set(TRACY_DIR "/home/raj/Documents/Projects/system_software/tracy")
+add_library(TracyClient STATIC ${TRACY_DIR}/public/TracyClient.cpp)
+target_include_directories(TracyClient PUBLIC ${TRACY_DIR}/public)
+target_compile_definitions(TracyClient PUBLIC TRACY_ENABLE)
+target_compile_options(TracyClient PRIVATE -fPIC)
+target_link_libraries(TracyClient PUBLIC pthread dl)
+
 include_directories(
 ${PROJECT_SOURCE_DIR}
 ${PROJECT_SOURCE_DIR}/include
@@ -49,6 +57,7 @@ ${PROJECT_SOURCE_DIR}/include/CameraModels
 ${PROJECT_SOURCE_DIR}/Thirdparty/Sophus
 ${EIGEN3_INCLUDE_DIR}
 ${Pangolin_INCLUDE_DIRS}
+${TRACY_DIR}/public
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
@@ -123,7 +132,10 @@ ${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 -lboost_serialization
 -lcrypto
+TracyClient
 )
+
+target_compile_definitions(${PROJECT_NAME} PUBLIC TRACY_ENABLE)
 
 # If RealSense SDK is found the library is added and its examples compiled
 if(realsense2_FOUND)
