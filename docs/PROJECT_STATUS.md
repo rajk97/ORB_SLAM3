@@ -202,9 +202,33 @@ Saving trajectory to f_dataset-V101_mono_inertial.txt ...
 4. **Optimization:** Profile and optimize for XR latency requirements (<11ms)
 
 ---
-
 ## 📚 References
 
 - [ORB-SLAM3 Paper](https://arxiv.org/abs/2007.11898)
 - [EuRoC Dataset](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets)
+- [Original ORB-SLAM3 Repo](https://github.com/UZ-SLAMLab/ORB_SLAM3)
+
+---
+
+## 📝 Updates - November 26, 2025
+
+### Updated Working Command (Simplified Library Path)
+
+The following command works correctly with simplified library paths:
+
+```bash
+cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3 && \
+export LD_LIBRARY_PATH=/home/raj/Documents/Projects/system_software/pangolin/install/lib:/home/raj/Documents/Projects/system_software/lib:/home/raj/Documents/Projects/system_software/lib/opencv4/3rdparty:$LD_LIBRARY_PATH && \
+./Examples/Monocular-Inertial/mono_inertial_euroc \
+  ./Vocabulary/ORBvoc.txt \
+  ./Examples/Monocular-Inertial/EuRoC.yaml \
+  /home/raj/Documents/Projects/datasets/EuRoC/V101 \
+  ./Examples/Monocular-Inertial/EuRoC_TimeStamps/V101.txt \
+  dataset-V101_mono_inertial
+```
+
+**Key differences from original command:**
+- Simplified `LD_LIBRARY_PATH` to point directly to install locations
+- No need for `DISPLAY` variable (uses default display)
+- Appends to existing `$LD_LIBRARY_PATH` rather than replacing itkmavvisualinertialdatasets)
 - [Original ORB-SLAM3 Repo](https://github.com/UZ-SLAMLab/ORB_SLAM3)
