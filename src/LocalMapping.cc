@@ -326,12 +326,17 @@ void LocalMapping::ProcessNewKeyFrame()
     }
 
     // Compute Bags of Words structures
-    mpCurrentKeyFrame->ComputeBoW();
+    {
+        ZoneScopedN("ComputeBoW");
+        mpCurrentKeyFrame->ComputeBoW();
+    }
 
     // Associate MapPoints to the new keyframe and update normal and descriptor
     const vector<MapPoint*> vpMapPointMatches = mpCurrentKeyFrame->GetMapPointMatches();
 
-    for(size_t i=0; i<vpMapPointMatches.size(); i++)
+    {
+        ZoneScopedN("Associate MapPoints");
+        for(size_t i=0; i<vpMapPointMatches.size(); i++)
     {
         MapPoint* pMP = vpMapPointMatches[i];
         if(pMP)
@@ -352,11 +357,19 @@ void LocalMapping::ProcessNewKeyFrame()
         }
     }
 
+    }
+
     // Update links in the Covisibility Graph
-    mpCurrentKeyFrame->UpdateConnections();
+    {
+        ZoneScopedN("UpdateConnections");
+        mpCurrentKeyFrame->UpdateConnections();
+    }
 
     // Insert Keyframe in Map
-    mpAtlas->AddKeyFrame(mpCurrentKeyFrame);
+    {
+        ZoneScopedN("AddKeyFrame to Atlas");
+        mpAtlas->AddKeyFrame(mpCurrentKeyFrame);
+    }
 }
 
 void LocalMapping::EmptyQueue()

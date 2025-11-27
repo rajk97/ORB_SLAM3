@@ -2017,6 +2017,7 @@ void Tracking::Track()
                     else
                     {
                         // Relocalization
+                        ZoneScopedNC("Relocalization", 0xFFAA00);
                         bOK = Relocalization();
                         //std::cout << "mCurrentFrame.mTimeStamp:" << to_string(mCurrentFrame.mTimeStamp) << std::endl;
                         //std::cout << "mTimeStampLost:" << to_string(mTimeStampLost) << std::endl;
@@ -2141,6 +2142,7 @@ void Tracking::Track()
         {
             if(bOK)
             {
+                ZoneScopedNC("TrackLocalMap", 0x00CCFF);
                 bOK = TrackLocalMap();
 
             }
@@ -2153,7 +2155,10 @@ void Tracking::Track()
             // a local map and therefore we do not perform TrackLocalMap(). Once the system relocalizes
             // the camera we will use the local map again.
             if(bOK && !mbVO)
+            {
+                ZoneScopedNC("TrackLocalMap", 0x00CCFF);
                 bOK = TrackLocalMap();
+            }
         }
 
         if(bOK)
@@ -2236,35 +2241,45 @@ void Tracking::Track()
                 mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.GetPose());
 
             // Clean VO matches
-            for(int i=0; i<mCurrentFrame.N; i++)
             {
-                MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
-                if(pMP)
-                    if(pMP->Observations()<1)
-                    {
-                        mCurrentFrame.mvbOutlier[i] = false;
-                        mCurrentFrame.mvpMapPoints[i]=static_cast<MapPoint*>(NULL);
-                    }
-            }
+                ZoneScopedN("Clean VO Matches");
+                for(int i=0; i<mCurrentFrame.N; i++)
+                {
+                    MapPoint* pMP = mCurrentFrame.mvpMapPoints[i];
+                    if(pMP)
+                        if(pMP->Observations()<1)
+                        {
+                            mCurrentFrame.mvbOutlier[i] = false;
+                            mCurrentFrame.mvpMapPoints[i]=static_cast<MapPoint*>(NULL);
+                        }
+                }
 
-            // Delete temporal MapPoints
-            for(list<MapPoint*>::iterator lit = mlpTemporalPoints.begin(), lend =  mlpTemporalPoints.end(); lit!=lend; lit++)
-            {
-                MapPoint* pMP = *lit;
-                delete pMP;
+                // Delete temporal MapPoints
+                for(list<MapPoint*>::iterator lit = mlpTemporalPoints.begin(), lend =  mlpTemporalPoints.end(); lit!=lend; lit++)
+                {
+                    MapPoint* pMP = *lit;
+                    delete pMP;
+                }
+                mlpTemporalPoints.clear();
             }
-            mlpTemporalPoints.clear();
 
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_StartNewKF = std::chrono::steady_clock::now();
 #endif
-            bool bNeedKF = NeedNewKeyFrame();
+            bool bNeedKF;
+            {
+                ZoneScopedNC("NeedNewKeyFrame", 0xCCFF00);
+                bNeedKF = NeedNewKeyFrame();
+            }
 
             // Check if we need to insert a new keyframe
             // if(bNeedKF && bOK)
             if(bNeedKF && (bOK || (mInsertKFsLost && mState==RECENTLY_LOST &&
                                    (mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_STEREO || mSensor == System::IMU_RGBD))))
+            {
+                ZoneScopedNC("CreateNewKeyFrame", 0xDDFF00);
                 CreateNewKeyFrame();
+            }
 
 #ifdef REGISTER_TIMES
             std::chrono::steady_clock::time_point time_EndNewKF = std::chrono::steady_clock::now();
@@ -2507,7 +2522,11 @@ void Tracking::MonocularInitialization()
 
         // Find correspondences
         ORBmatcher matcher(0.9,true);
-        int nmatches = matcher.SearchForInitialization(mInitialFrame,mCurrentFrame,mvbPrevMatched,mvIniMatches,100);
+        int nmatches;
+        {
+            ZoneScopedNC("SearchForInitialization", 0xAAAA00);
+            nmatches = matcher.SearchForInitialization(mInitialFrame,mCurrentFrame,mvbPrevMatched,mvIniMatches,100);
+        }
 
         // Check if there are enough correspondences
         if(nmatches<100)
@@ -2518,8 +2537,13 @@ void Tracking::MonocularInitialization()
 
         Sophus::SE3f Tcw;
         vector<bool> vbTriangulated; // Triangulated Correspondences (mvIniMatches)
+        bool bReconstructed;
+        {
+            ZoneScopedNC("ReconstructWithTwoViews", 0xBBBB00);
+            bReconstructed = mpCamera->ReconstructWithTwoViews(mInitialFrame.mvKeysUn,mCurrentFrame.mvKeysUn,mvIniMatches,Tcw,mvIniP3D,vbTriangulated);
+        }
 
-        if(mpCamera->ReconstructWithTwoViews(mInitialFrame.mvKeysUn,mCurrentFrame.mvKeysUn,mvIniMatches,Tcw,mvIniP3D,vbTriangulated))
+        if(bReconstructed)
         {
             for(size_t i=0, iend=mvIniMatches.size(); i<iend;i++)
             {
@@ -2595,9 +2619,16 @@ void Tracking::CreateInitialMapMonocular()
 
     // Bundle Adjustment
     Verbose::PrintMess("New Map created with " + to_string(mpAtlas->MapPointsInMap()) + " points", Verbose::VERBOSITY_QUIET);
-    Optimizer::GlobalBundleAdjustemnt(mpAtlas->GetCurrentMap(),20);
+    {
+        ZoneScopedNC("GlobalBundleAdjustment", 0xFF3300);
+        Optimizer::GlobalBundleAdjustemnt(mpAtlas->GetCurrentMap(),20);
+    }
 
-    float medianDepth = pKFini->ComputeSceneMedianDepth(2);
+    float medianDepth;
+    {
+        ZoneScopedN("ComputeSceneMedianDepth");
+        medianDepth = pKFini->ComputeSceneMedianDepth(2);
+    }
     float invMedianDepth;
     if(mSensor == System::IMU_MONOCULAR)
         invMedianDepth = 4.0f/medianDepth; // 4.0f
@@ -2679,6 +2710,7 @@ void Tracking::CreateInitialMapMonocular()
 
 void Tracking::CreateMapInAtlas()
 {
+    ZoneScopedNC("CreateMapInAtlas", 0xCCCC00);
     mnLastInitFrameId = mCurrentFrame.mnId;
     mpAtlas->CreateNewMap();
     if (mSensor==System::IMU_STEREO || mSensor == System::IMU_MONOCULAR || mSensor == System::IMU_RGBD)

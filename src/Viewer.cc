@@ -222,8 +222,9 @@ void Viewer::Run()
     cout << "Starting the Viewer" << endl;
     while(1)
     {
-        ZoneScopedNC("Viewer Render Loop", 0x00FF88);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        {
+            ZoneScopedNC("Viewer Render Loop", 0x00FF88);
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         mpMapDrawer->GetCurrentOpenGLCameraMatrix(Twc,Ow);
 
@@ -387,8 +388,9 @@ void Viewer::Run()
             }
         }
 
-        if(CheckFinish())
-            break;
+            if(CheckFinish())
+                break;
+        } // Close Viewer Render Loop zone
 
         FrameMark; // Mark end of Viewer frame
     }

@@ -60,6 +60,7 @@
 #include <iostream>
 
 #include "ORBextractor.h"
+#include "tracy/Tracy.hpp"
 
 
 using namespace cv;
@@ -1086,6 +1087,7 @@ namespace ORB_SLAM3
     int ORBextractor::operator()( InputArray _image, InputArray _mask, vector<KeyPoint>& _keypoints,
                                   OutputArray _descriptors, std::vector<int> &vLappingArea)
     {
+        ZoneScopedNC("ORB Feature Extraction", 0x00FF00); // Green
         //cout << "[ORBextractor]: Max Features: " << nfeatures << endl;
         if(_image.empty())
             return -1;
@@ -1169,6 +1171,7 @@ namespace ORB_SLAM3
 
     void ORBextractor::ComputePyramid(cv::Mat image)
     {
+        ZoneScopedNC("ComputePyramid", 0x00DD00);
         for (int level = 0; level < nlevels; ++level)
         {
             float scale = mvInvScaleFactor[level];
@@ -1180,13 +1183,19 @@ namespace ORB_SLAM3
             // Compute the resized image
             if( level != 0 )
             {
-                resize(mvImagePyramid[level-1], mvImagePyramid[level], sz, 0, 0, INTER_LINEAR);
-
-                copyMakeBorder(mvImagePyramid[level], temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
-                               BORDER_REFLECT_101+BORDER_ISOLATED);
+                {
+                    ZoneScopedN("cv::resize");
+                    resize(mvImagePyramid[level-1], mvImagePyramid[level], sz, 0, 0, INTER_LINEAR);
+                }
+                {
+                    ZoneScopedN("cv::copyMakeBorder");
+                    copyMakeBorder(mvImagePyramid[level], temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
+                                   BORDER_REFLECT_101+BORDER_ISOLATED);
+                }
             }
             else
             {
+                ZoneScopedN("cv::copyMakeBorder");
                 copyMakeBorder(image, temp, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD, EDGE_THRESHOLD,
                                BORDER_REFLECT_101);
             }

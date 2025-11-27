@@ -21,6 +21,8 @@
 #include "ImuTypes.h"
 #include<mutex>
 
+#include <tracy/Tracy.hpp>
+
 namespace ORB_SLAM3
 {
 
@@ -203,6 +205,7 @@ void KeyFrame::AddConnection(KeyFrame *pKF, const int &weight)
 
 void KeyFrame::UpdateBestCovisibles()
 {
+    ZoneScopedNC("UpdateBestCovisibles", 0x00CCCC);
     unique_lock<mutex> lock(mMutexConnections);
     vector<pair<int,KeyFrame*> > vPairs;
     vPairs.reserve(mConnectedKeyFrameWeights.size());
@@ -378,6 +381,7 @@ MapPoint* KeyFrame::GetMapPoint(const size_t &idx)
 
 void KeyFrame::UpdateConnections(bool upParent)
 {
+    ZoneScopedNC("UpdateConnections", 0x00DDDD);
     map<KeyFrame*,int> KFcounter;
 
     vector<MapPoint*> vpMP;

@@ -25,6 +25,7 @@
 #include "Converter.h"
 #include "ORBmatcher.h"
 #include "GeometricCamera.h"
+#include <tracy/Tracy.hpp>
 
 #include <thread>
 #include <include/CameraModels/Pinhole.h>
@@ -763,7 +764,10 @@ void Frame::UndistortKeyPoints()
 
     // Undistort points
     mat=mat.reshape(2);
-    cv::undistortPoints(mat,mat, static_cast<Pinhole*>(mpCamera)->toK(),mDistCoef,cv::Mat(),mK);
+    {
+        ZoneScopedN("cv::undistortPoints");
+        cv::undistortPoints(mat,mat, static_cast<Pinhole*>(mpCamera)->toK(),mDistCoef,cv::Mat(),mK);
+    }
     mat=mat.reshape(1);
 
 
@@ -790,7 +794,10 @@ void Frame::ComputeImageBounds(const cv::Mat &imLeft)
         mat.at<float>(3,0)=imLeft.cols; mat.at<float>(3,1)=imLeft.rows;
 
         mat=mat.reshape(2);
-        cv::undistortPoints(mat,mat,static_cast<Pinhole*>(mpCamera)->toK(),mDistCoef,cv::Mat(),mK);
+        {
+            ZoneScopedN("cv::undistortPoints");
+            cv::undistortPoints(mat,mat,static_cast<Pinhole*>(mpCamera)->toK(),mDistCoef,cv::Mat(),mK);
+        }
         mat=mat.reshape(1);
 
         // Undistort corners

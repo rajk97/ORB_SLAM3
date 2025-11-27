@@ -19,6 +19,7 @@
 
 #include "Optimizer.h"
 
+#include "tracy/Tracy.hpp"
 
 #include <complex>
 
@@ -277,7 +278,10 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
     // Optimize!
     optimizer.setVerbose(false);
     optimizer.initializeOptimization();
-    optimizer.optimize(nIterations);
+    {
+        ZoneScopedNC("BundleAdjustment::optimize", 0xFF2200); // Dark red
+        optimizer.optimize(nIterations);
+    }
     Verbose::PrintMess("BA: End of the optimization", Verbose::VERBOSITY_NORMAL);
 
     // Recover optimized data
@@ -724,7 +728,10 @@ void Optimizer::FullInertialBA(Map *pMap, int its, const bool bFixLocal, const l
 
 
     optimizer.initializeOptimization();
-    optimizer.optimize(its);
+    {
+        ZoneScopedNC("FullInertialBA::optimize", 0xFF4400); // Orange-red
+        optimizer.optimize(its);
+    }
 
 
     // Recover optimized data
@@ -1005,13 +1012,19 @@ int Optimizer::PoseOptimization(Frame *pFrame)
     int nBad=0;
     for(size_t it=0; it<4; it++)
     {
+        ZoneScopedN("PoseOpt Iteration"); // Track each optimization iteration
         Tcw = pFrame->GetPose();
         vSE3->setEstimate(g2o::SE3Quat(Tcw.unit_quaternion().cast<double>(),Tcw.translation().cast<double>()));
 
-        optimizer.initializeOptimization(0);
-        optimizer.optimize(its[it]);
+        {
+            ZoneScopedN("g2o::optimize");
+            optimizer.initializeOptimization(0);
+            optimizer.optimize(its[it]);
+        }
 
         nBad=0;
+        {
+            ZoneScopedN("Outlier Detection");
         for(size_t i=0, iend=vpEdgesMono.size(); i<iend; i++)
         {
             ORB_SLAM3::EdgeSE3ProjectXYZOnlyPose* e = vpEdgesMono[i];
@@ -1098,6 +1111,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
             if(it==2)
                 e->setRobustKernel(0);
         }
+        } // End Outlier Detection zone
 
         if(optimizer.edges().size()<10)
             break;
@@ -2840,7 +2854,10 @@ void Optimizer::LocalInertialBA(KeyFrame *pKF, bool *pbStopFlag, Map *pMap, int&
     optimizer.initializeOptimization();
     optimizer.computeActiveErrors();
     float err = optimizer.activeRobustChi2();
-    optimizer.optimize(opt_it); // Originally to 2
+    {
+        ZoneScopedNC("LocalInertialBA::optimize", 0xFFAA00); // Gold
+        optimizer.optimize(opt_it); // Originally to 2
+    }
     float err_end = optimizer.activeRobustChi2();
     if(pbStopFlag)
         optimizer.setForceStopFlag(pbStopFlag);

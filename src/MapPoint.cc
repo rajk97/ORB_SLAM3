@@ -21,6 +21,8 @@
 
 #include<mutex>
 
+#include <tracy/Tracy.hpp>
+
 namespace ORB_SLAM3
 {
 
@@ -328,6 +330,7 @@ float MapPoint::GetFoundRatio()
 
 void MapPoint::ComputeDistinctiveDescriptors()
 {
+    ZoneScopedNC("ComputeDistinctiveDescriptors", 0x00AAAA);
     // Retrieve all observed descriptors
     vector<cv::Mat> vDescriptors;
 
@@ -425,6 +428,7 @@ bool MapPoint::IsInKeyFrame(KeyFrame *pKF)
 
 void MapPoint::UpdateNormalAndDepth()
 {
+    ZoneScopedNC("UpdateNormalAndDepth", 0x00BBBB);
     map<KeyFrame*,tuple<int,int>> observations;
     KeyFrame* pRefKF;
     Eigen::Vector3f Pos;

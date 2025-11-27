@@ -94,13 +94,14 @@ void LoopClosing::Run()
 
     while(1)
     {
-        ZoneScopedN("LoopClosing Loop");
+        {
+            ZoneScopedN("LoopClosing Loop");
 
-        //NEW LOOP AND MERGE DETECTION ALGORITHM
-        //----------------------------
+            //NEW LOOP AND MERGE DETECTION ALGORITHM
+            //----------------------------
 
 
-        if(CheckNewKeyFrames())
+            if(CheckNewKeyFrames())
         {
             if(mpLastCurrentKF)
             {
@@ -281,8 +282,10 @@ void LoopClosing::Run()
 
 #endif
                         {
-                            ZoneScopedNC("Loop Correction", 0xFF0088);
-                            CorrectLoop();
+                            {
+                                ZoneScopedNC("Loop Correction", 0xFF0088);
+                                CorrectLoop();
+                            }
                         }
 #ifdef REGISTER_TIMES
                         std::chrono::steady_clock::time_point time_EndLoop = std::chrono::steady_clock::now();
@@ -311,8 +314,9 @@ void LoopClosing::Run()
         ResetIfRequested();
 
         if(CheckFinish()){
-            break;
-        }
+                break;
+            }
+        } // Close LoopClosing Loop zone
 
         FrameMark; // Mark end of LoopClosing iteration
 
@@ -1860,8 +1864,14 @@ void LoopClosing::MergeLocal2()
         bool bScaleVel=false;
         if(s_on!=1)
             bScaleVel=true;
-        mpAtlas->GetCurrentMap()->ApplyScaledRotation(T_on,s_on,bScaleVel);
-        mpTracker->UpdateFrameIMU(s_on,mpCurrentKF->GetImuBias(),mpTracker->GetLastKeyFrame());
+        {
+            ZoneScopedN("ApplyScaledRotation");
+            mpAtlas->GetCurrentMap()->ApplyScaledRotation(T_on,s_on,bScaleVel);
+        }
+        {
+            ZoneScopedN("UpdateFrameIMU");
+            mpTracker->UpdateFrameIMU(s_on,mpCurrentKF->GetImuBias(),mpTracker->GetLastKeyFrame());
+        }
 
         std::chrono::steady_clock::time_point t3 = std::chrono::steady_clock::now();
     }
@@ -1874,7 +1884,10 @@ void LoopClosing::MergeLocal2()
         Eigen::Vector3d bg, ba;
         bg << 0., 0., 0.;
         ba << 0., 0., 0.;
-        Optimizer::InertialOptimization(pCurrentMap,bg,ba);
+        {
+            ZoneScopedNC("InertialOptimization", 0xFF00AA);
+            Optimizer::InertialOptimization(pCurrentMap,bg,ba);
+        }
         IMU::Bias b (ba[0],ba[1],ba[2],bg[0],bg[1],bg[2]);
         unique_lock<mutex> lock(mpAtlas->GetCurrentMap()->mMutexMapUpdate);
         mpTracker->UpdateFrameIMU(1.0f,b,mpTracker->GetLastKeyFrame());

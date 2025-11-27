@@ -18,6 +18,7 @@
 
 
 #include "ORBmatcher.h"
+#include "tracy/Tracy.hpp"
 
 #include<limits.h>
 
@@ -42,6 +43,7 @@ namespace ORB_SLAM3
 
     int ORBmatcher::SearchByProjection(Frame &F, const vector<MapPoint*> &vpMapPoints, const float th, const bool bFarPoints, const float thFarPoints)
     {
+        ZoneScopedNC("SearchByProjection-Frame", 0x0088FF);
         int nmatches=0, left = 0, right = 0;
 
         const bool bFactor = th!=1.0;
@@ -222,6 +224,7 @@ namespace ORB_SLAM3
 
     int ORBmatcher::SearchByBoW(KeyFrame* pKF,Frame &F, vector<MapPoint*> &vpMapPointMatches)
     {
+        ZoneScopedNC("SearchByBoW-KF-Frame", 0x00AAFF);
         const vector<MapPoint*> vpMapPointsKF = pKF->GetMapPointMatches();
 
         vpMapPointMatches = vector<MapPoint*>(F.N,static_cast<MapPoint*>(NULL));
@@ -764,6 +767,7 @@ namespace ORB_SLAM3
 
     int ORBmatcher::SearchByBoW(KeyFrame *pKF1, KeyFrame *pKF2, vector<MapPoint *> &vpMatches12)
     {
+        ZoneScopedNC("SearchByBoW-KF-KF", 0x00CCFF);
         const vector<cv::KeyPoint> &vKeysUn1 = pKF1->mvKeysUn;
         const DBoW2::FeatureVector &vFeatVec1 = pKF1->mFeatVec;
         const vector<MapPoint*> vpMapPoints1 = pKF1->GetMapPointMatches();
@@ -1456,6 +1460,7 @@ namespace ORB_SLAM3
 
     int ORBmatcher::SearchBySim3(KeyFrame* pKF1, KeyFrame* pKF2, std::vector<MapPoint *> &vpMatches12, const Sophus::Sim3f &S12, const float th)
     {
+        ZoneScopedNC("SearchBySim3", 0x00EEFF);
         const float &fx = pKF1->fx;
         const float &fy = pKF1->fy;
         const float &cx = pKF1->cx;

@@ -257,12 +257,18 @@ Sophus::SE3f System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, 
         cv::Mat M1r = settings_->M1r();
         cv::Mat M2r = settings_->M2r();
 
-        cv::remap(imLeft, imLeftToFeed, M1l, M2l, cv::INTER_LINEAR);
-        cv::remap(imRight, imRightToFeed, M1r, M2r, cv::INTER_LINEAR);
+        {
+            ZoneScopedN("cv::remap stereo");
+            cv::remap(imLeft, imLeftToFeed, M1l, M2l, cv::INTER_LINEAR);
+            cv::remap(imRight, imRightToFeed, M1r, M2r, cv::INTER_LINEAR);
+        }
     }
     else if(settings_ && settings_->needToResize()){
-        cv::resize(imLeft,imLeftToFeed,settings_->newImSize());
-        cv::resize(imRight,imRightToFeed,settings_->newImSize());
+        {
+            ZoneScopedN("cv::resize stereo");
+            cv::resize(imLeft,imLeftToFeed,settings_->newImSize());
+            cv::resize(imRight,imRightToFeed,settings_->newImSize());
+        }
     }
     else{
         imLeftToFeed = imLeft.clone();
@@ -338,10 +344,13 @@ Sophus::SE3f System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const
     cv::Mat imDepthToFeed = depthmap.clone();
     if(settings_ && settings_->needToResize()){
         cv::Mat resizedIm;
-        cv::resize(im,resizedIm,settings_->newImSize());
-        imToFeed = resizedIm;
+        {
+            ZoneScopedN("cv::resize RGB-D");
+            cv::resize(im,resizedIm,settings_->newImSize());
+            imToFeed = resizedIm;
 
-        cv::resize(depthmap,imDepthToFeed,settings_->newImSize());
+            cv::resize(depthmap,imDepthToFeed,settings_->newImSize());
+        }
     }
 
     // Check mode change
