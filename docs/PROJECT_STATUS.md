@@ -230,5 +230,85 @@ export LD_LIBRARY_PATH=/home/raj/Documents/Projects/system_software/pangolin/ins
 **Key differences from original command:**
 - Simplified `LD_LIBRARY_PATH` to point directly to install locations
 - No need for `DISPLAY` variable (uses default display)
-- Appends to existing `$LD_LIBRARY_PATH` rather than replacing itkmavvisualinertialdatasets)
+- Appends to existing `$LD_LIBRARY_PATH` rather than replacing it
+
+---
+
+## 📝 Updates - November 27, 2025
+
+### Build Instructions with Tracy Profiling
+
+After adding comprehensive Tracy profiling zones (87+ zones including RAJ_ optimization zones), the build requires explicit Eigen and OpenCV paths:
+
+```bash
+cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3/build
+cmake .. \
+  -DEIGEN3_INCLUDE_DIR=/home/raj/Documents/Projects/system_software/eigen/install/include/eigen3 \
+  -DG2O_EIGEN3_INCLUDE=/home/raj/Documents/Projects/system_software/eigen/install/include/eigen3 \
+  -DOpenCV_DIR=/home/raj/Documents/Projects/system_software/opencv/build
+make -j4
+```
+
+**Why this is needed:**
+- The `g2o` third-party library needs explicit `G2O_EIGEN3_INCLUDE` path
+- After clean build, CMake cache doesn't retain previous Eigen configuration
+- Build warnings (Eigen deprecation, unused variables) are harmless
+
+### Tracy Profiling Zones Added
+
+The codebase now includes comprehensive profiling for performance analysis:
+
+**General SLAM Pipeline (87+ zones):**
+- `Tracking.cc`: Track loop, IMU operations, initialization, tracking modes
+- `LocalMapping.cc`: ProcessNewKeyFrame with detailed zones
+- `LoopClosing.cc`: Loop detection, merging, correction
+- `Optimizer.cc`: Tight zones around optimize() calls
+- `Frame.cc`, `KeyFrame.cc`, `MapPoint.cc`: Core data structure operations
+- `ORBextractor.cc`, `ORBmatcher.cc`: Feature extraction and matching
+
+**SearchLocalPoints Optimization Zones (RAJ_ prefix):**
+- `RAJ_MarkMatchedPoints` - Phase 1: Mark already-matched points
+- `RAJ_ProjectLocalMapPoints` - Phase 2: Project ~3000 local map points (bottleneck)
+- `RAJ_ComputeSearchRadius` - Adaptive search radius calculation
+- `RAJ_FeatureMatching` - Descriptor matching phase
+- `RAJ_isInFrustum` - Per-point visibility test (called ~3000x per frame)
+- `RAJ_GetFeaturesInArea` - Spatial grid feature lookup
+- `RAJ_DescriptorMatching` - Hamming distance computation loop
+
+**Tracy Performance Plots:**
+- `RAJ_VisibleMapPoints` - Points passing frustum test
+- `RAJ_SearchRadius` - Search radius per frame
+- `RAJ_MatchesFound` - Final matches in SearchLocalPoints
+- `RAJ_CandidateMapPoints` - Candidates in SearchByProjection
+- `RAJ_DescriptorComparisons` - Descriptor comparisons made
+- `RAJ_FinalMatches` - Matches found by SearchByProjection
+
+### Running with Visualization
+
+Same command as before works with all profiling zones:
+
+```bash
+cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3 && \
+export LD_LIBRARY_PATH=/home/raj/Documents/Projects/system_software/pangolin/install/lib:/home/raj/Documents/Projects/system_software/lib:/home/raj/Documents/Projects/system_software/lib/opencv4/3rdparty:$LD_LIBRARY_PATH && \
+./Examples/Monocular-Inertial/mono_inertial_euroc \
+  ./Vocabulary/ORBvoc.txt \
+  ./Examples/Monocular-Inertial/EuRoC.yaml \
+  /home/raj/Documents/Projects/datasets/EuRoC/V101 \
+  ./Examples/Monocular-Inertial/EuRoC_TimeStamps/V101.txt \
+  dataset-V101_mono_inertial
+```
+
+**Expected behavior:**
+- Pangolin visualization windows appear (3D map view + current frame)
+- Tracy profiling zones active (~0.02% overhead when profiler not connected)
+- Map initializes with ~339-487 points
+- Processes full V101 sequence (2804 poses, ~302 KFs)
+
+---
+
+## 📚 References
+
+- [ORB-SLAM3 Paper](https://arxiv.org/abs/2007.11898)
+- [EuRoC Dataset](https://projects.asl.ethz.ch/datasets/doku.php?id=kmavvisualinertialdatasets)
 - [Original ORB-SLAM3 Repo](https://github.com/UZ-SLAMLab/ORB_SLAM3)
+- [Tracy Profiler](https://github.com/wolfpld/tracy)

@@ -3428,75 +3428,94 @@ void Tracking::CreateNewKeyFrame()
 void Tracking::SearchLocalPoints()
 {
     ZoneScopedC(0x00FFAA); // Light green
-    // Do not search map points already matched
-    for(vector<MapPoint*>::iterator vit=mCurrentFrame.mvpMapPoints.begin(), vend=mCurrentFrame.mvpMapPoints.end(); vit!=vend; vit++)
+    
+    // PHASE 1: Mark already-matched points
     {
-        MapPoint* pMP = *vit;
-        if(pMP)
+        ZoneScopedN("RAJ_MarkMatchedPoints");
+        // Do not search map points already matched
+        for(vector<MapPoint*>::iterator vit=mCurrentFrame.mvpMapPoints.begin(), vend=mCurrentFrame.mvpMapPoints.end(); vit!=vend; vit++)
         {
-            if(pMP->isBad())
+            MapPoint* pMP = *vit;
+            if(pMP)
             {
-                *vit = static_cast<MapPoint*>(NULL);
-            }
-            else
-            {
-                pMP->IncreaseVisible();
-                pMP->mnLastFrameSeen = mCurrentFrame.mnId;
-                pMP->mbTrackInView = false;
-                pMP->mbTrackInViewR = false;
+                if(pMP->isBad())
+                {
+                    *vit = static_cast<MapPoint*>(NULL);
+                }
+                else
+                {
+                    pMP->IncreaseVisible();
+                    pMP->mnLastFrameSeen = mCurrentFrame.mnId;
+                    pMP->mbTrackInView = false;
+                    pMP->mbTrackInViewR = false;
+                }
             }
         }
     }
 
     int nToMatch=0;
 
-    // Project points in frame and check its visibility
-    for(vector<MapPoint*>::iterator vit=mvpLocalMapPoints.begin(), vend=mvpLocalMapPoints.end(); vit!=vend; vit++)
+    // PHASE 2: Project local map points and check visibility
     {
-        MapPoint* pMP = *vit;
+        ZoneScopedN("RAJ_ProjectLocalMapPoints");
+        // Project points in frame and check its visibility
+        for(vector<MapPoint*>::iterator vit=mvpLocalMapPoints.begin(), vend=mvpLocalMapPoints.end(); vit!=vend; vit++)
+        {
+            MapPoint* pMP = *vit;
 
-        if(pMP->mnLastFrameSeen == mCurrentFrame.mnId)
-            continue;
-        if(pMP->isBad())
-            continue;
-        // Project (this fills MapPoint variables for matching)
-        if(mCurrentFrame.isInFrustum(pMP,0.5))
-        {
-            pMP->IncreaseVisible();
-            nToMatch++;
+            if(pMP->mnLastFrameSeen == mCurrentFrame.mnId)
+                continue;
+            if(pMP->isBad())
+                continue;
+            // Project (this fills MapPoint variables for matching)
+            if(mCurrentFrame.isInFrustum(pMP,0.5))
+            {
+                pMP->IncreaseVisible();
+                nToMatch++;
+            }
+            if(pMP->mbTrackInView)
+            {
+                mCurrentFrame.mmProjectPoints[pMP->mnId] = cv::Point2f(pMP->mTrackProjX, pMP->mTrackProjY);
+            }
         }
-        if(pMP->mbTrackInView)
-        {
-            mCurrentFrame.mmProjectPoints[pMP->mnId] = cv::Point2f(pMP->mTrackProjX, pMP->mTrackProjY);
-        }
+        TracyPlot("RAJ_VisibleMapPoints", (int64_t)nToMatch);
     }
 
+    // PHASE 3: Feature matching
     if(nToMatch>0)
     {
+        ZoneScopedN("RAJ_FeatureMatching");
+        
         ORBmatcher matcher(0.8);
         int th = 1;
-        if(mSensor==System::RGBD || mSensor==System::IMU_RGBD)
-            th=3;
-        if(mpAtlas->isImuInitialized())
         {
-            if(mpAtlas->GetCurrentMap()->GetIniertialBA2())
-                th=2;
-            else
-                th=6;
-        }
-        else if(!mpAtlas->isImuInitialized() && (mSensor==System::IMU_MONOCULAR || mSensor==System::IMU_STEREO || mSensor == System::IMU_RGBD))
-        {
-            th=10;
-        }
+            ZoneScopedN("RAJ_ComputeSearchRadius");
+            if(mSensor==System::RGBD || mSensor==System::IMU_RGBD)
+                th=3;
+            if(mpAtlas->isImuInitialized())
+            {
+                if(mpAtlas->GetCurrentMap()->GetIniertialBA2())
+                    th=2;
+                else
+                    th=6;
+            }
+            else if(!mpAtlas->isImuInitialized() && (mSensor==System::IMU_MONOCULAR || mSensor==System::IMU_STEREO || mSensor == System::IMU_RGBD))
+            {
+                th=10;
+            }
 
-        // If the camera has been relocalised recently, perform a coarser search
-        if(mCurrentFrame.mnId<mnLastRelocFrameId+2)
-            th=5;
+            // If the camera has been relocalised recently, perform a coarser search
+            if(mCurrentFrame.mnId<mnLastRelocFrameId+2)
+                th=5;
 
-        if(mState==LOST || mState==RECENTLY_LOST) // Lost for less than 1 second
-            th=15; // 15
+            if(mState==LOST || mState==RECENTLY_LOST) // Lost for less than 1 second
+                th=15; // 15
+            
+            TracyPlot("RAJ_SearchRadius", (int64_t)th);
+        }
 
         int matches = matcher.SearchByProjection(mCurrentFrame, mvpLocalMapPoints, th, mpLocalMapper->mbFarPoints, mpLocalMapper->mThFarPoints);
+        TracyPlot("RAJ_MatchesFound", (int64_t)matches);
     }
 }
 

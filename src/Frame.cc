@@ -512,6 +512,8 @@ Eigen::Vector3f Frame::GetRelativePoseTlr_translation() {
 
 bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
 {
+    ZoneScopedN("RAJ_isInFrustum");
+    
     if(Nleft == -1){
         pMP->mbTrackInView = false;
         pMP->mTrackProjX = -1;
@@ -520,7 +522,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
         // 3D in absolute coordinates
         Eigen::Matrix<float,3,1> P = pMP->GetWorldPos();
 
-        // 3D in camera coordinates
+        // Transform to camera coordinates
         const Eigen::Matrix<float,3,1> Pc = mRcw * P + mtcw;
         const float Pc_dist = Pc.norm();
 
@@ -530,8 +532,10 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
         if(PcZ<0.0f)
             return false;
 
+        // Project to image
         const Eigen::Vector2f uv = mpCamera->project(Pc);
 
+        // Image bounds check
         if(uv(0)<mnMinX || uv(0)>mnMaxX)
             return false;
         if(uv(1)<mnMinY || uv(1)>mnMaxY)
@@ -657,6 +661,7 @@ Eigen::Vector3f Frame::inRefCoordinates(Eigen::Vector3f pCw)
 
 vector<size_t> Frame::GetFeaturesInArea(const float &x, const float  &y, const float  &r, const int minLevel, const int maxLevel, const bool bRight) const
 {
+    ZoneScopedN("RAJ_GetFeaturesInArea");
     vector<size_t> vIndices;
     vIndices.reserve(N);
 

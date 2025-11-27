@@ -45,6 +45,8 @@ namespace ORB_SLAM3
     {
         ZoneScopedNC("SearchByProjection-Frame", 0x0088FF);
         int nmatches=0, left = 0, right = 0;
+        int nCandidates = 0;
+        int nDescriptorComparisons = 0;
 
         const bool bFactor = th!=1.0;
 
@@ -62,6 +64,7 @@ namespace ORB_SLAM3
 
             if(pMP->mbTrackInView)
             {
+                nCandidates++;
                 const int &nPredictedLevel = pMP->mnTrackScaleLevel;
 
                 // The size of the window will depend on the viewing direction
@@ -74,6 +77,7 @@ namespace ORB_SLAM3
                         F.GetFeaturesInArea(pMP->mTrackProjX,pMP->mTrackProjY,r*F.mvScaleFactors[nPredictedLevel],nPredictedLevel-1,nPredictedLevel);
 
                 if(!vIndices.empty()){
+                    ZoneScopedN("RAJ_DescriptorMatching");
                     const cv::Mat MPdescriptor = pMP->GetDescriptor();
 
                     int bestDist=256;
@@ -100,6 +104,7 @@ namespace ORB_SLAM3
 
                         const cv::Mat &d = F.mDescriptors.row(idx);
 
+                        nDescriptorComparisons++;
                         const int dist = DescriptorDistance(MPdescriptor,d);
 
                         if(dist<bestDist)
@@ -211,6 +216,11 @@ namespace ORB_SLAM3
                 }
             }
         }
+
+        TracyPlot("RAJ_CandidateMapPoints", (int64_t)nCandidates);
+        TracyPlot("RAJ_DescriptorComparisons", (int64_t)nDescriptorComparisons);
+        TracyPlot("RAJ_FinalMatches", (int64_t)nmatches);
+
         return nmatches;
     }
 
