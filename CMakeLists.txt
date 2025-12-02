@@ -46,7 +46,7 @@ find_package(realsense2)
 set(TRACY_DIR "/home/raj/Documents/Projects/system_software/tracy")
 add_library(TracyClient STATIC ${TRACY_DIR}/public/TracyClient.cpp)
 target_include_directories(TracyClient PUBLIC ${TRACY_DIR}/public)
-target_compile_definitions(TracyClient PUBLIC TRACY_ENABLE)
+target_compile_definitions(TracyClient PUBLIC TRACY_ENABLE TRACY_ON_DEMAND)
 target_compile_options(TracyClient PRIVATE -fPIC)
 target_link_libraries(TracyClient PUBLIC pthread dl)
 
@@ -135,7 +135,7 @@ ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 TracyClient
 )
 
-target_compile_definitions(${PROJECT_NAME} PUBLIC TRACY_ENABLE)
+target_compile_definitions(${PROJECT_NAME} PUBLIC TRACY_ENABLE TRACY_ON_DEMAND)
 
 # If RealSense SDK is found the library is added and its examples compiled
 if(realsense2_FOUND)
@@ -232,7 +232,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Monocular-Iner
 
 add_executable(mono_inertial_euroc
         Examples/Monocular-Inertial/mono_inertial_euroc.cc)
-target_link_libraries(mono_inertial_euroc ${PROJECT_NAME})
+target_compile_definitions(mono_inertial_euroc PRIVATE TRACY_ENABLE TRACY_ON_DEMAND)
+target_link_libraries(mono_inertial_euroc ${PROJECT_NAME} TracyClient)
 
 add_executable(mono_inertial_tum_vi
         Examples/Monocular-Inertial/mono_inertial_tum_vi.cc)

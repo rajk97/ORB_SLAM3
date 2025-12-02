@@ -29,6 +29,10 @@
 #include<System.h>
 #include "ImuTypes.h"
 
+#ifdef TRACY_ENABLE
+#include "tracy/Tracy.hpp"
+#endif
+
 using namespace std;
 
 void LoadImages(const string &strImagePath, const string &strPathTimes,
@@ -39,6 +43,9 @@ void LoadIMU(const string &strImuPath, vector<double> &vTimeStamps, vector<cv::P
 double ttrack_tot = 0;
 int main(int argc, char *argv[])
 {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
 
     if(argc < 5)
     {

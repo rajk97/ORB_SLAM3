@@ -236,12 +236,48 @@ export LD_LIBRARY_PATH=/home/raj/Documents/Projects/system_software/pangolin/ins
 
 ## 📝 Updates - November 27, 2025
 
+### Tracy Profiler Integration - WORKING ✅
+
+**Tracy Setup:**
+- **Version:** v0.10 (C++17 compatible)
+- **Backend:** X11/GLFW (built with `LEGACY=1` flag)
+- **Location:** `/home/raj/Documents/Projects/system_software/tracy/`
+- **GUI:** `/home/raj/Documents/Projects/system_software/bin/tracy`
+- **Mode:** On-demand profiling (reconnectable)
+
+### Critical Learnings
+
+**Port 8086 Conflicts:**
+- Default Tracy port 8086 can conflict with SSH tunnels or other services
+- Use `sudo lsof -i :8086` to check port occupancy before connecting
+- Tracy won't bind if port is already taken
+
+**Tracy Rebuild Requirements:**
+- Must use `LEGACY=1` flag for X11 systems: `make LEGACY=1 -j$(nproc)`
+- Wayland backend crashes on X11 sessions
+- Rebuild command:
+  ```bash
+  cd /home/raj/Documents/Projects/system_software/tracy/profiler/build/unix
+  make clean && make LEGACY=1 -j$(nproc)
+  cp Tracy-release /home/raj/Documents/Projects/system_software/bin/tracy
+  ```
+
+**On-Demand Mode (Essential for Reconnections):**
+- Enable `TRACY_ON_DEMAND` to allow Tracy GUI reconnections
+- Without this, only ONE connection is allowed per application run
+- CMakeLists.txt configuration:
+  ```cmake
+  target_compile_definitions(TracyClient PUBLIC TRACY_ENABLE TRACY_ON_DEMAND)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC TRACY_ENABLE TRACY_ON_DEMAND)
+  ```
+
 ### Build Instructions with Tracy Profiling
 
-After adding comprehensive Tracy profiling zones (87+ zones including RAJ_ optimization zones), the build requires explicit Eigen and OpenCV paths:
+Clean build with Tracy on-demand mode:
 
 ```bash
 cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3/build
+rm -f CMakeCache.txt
 cmake .. \
   -DEIGEN3_INCLUDE_DIR=/home/raj/Documents/Projects/system_software/eigen/install/include/eigen3 \
   -DG2O_EIGEN3_INCLUDE=/home/raj/Documents/Projects/system_software/eigen/install/include/eigen3 \
@@ -253,6 +289,31 @@ make -j4
 - The `g2o` third-party library needs explicit `G2O_EIGEN3_INCLUDE` path
 - After clean build, CMake cache doesn't retain previous Eigen configuration
 - Build warnings (Eigen deprecation, unused variables) are harmless
+
+### Running with Tracy Profiling
+
+**Start ORB-SLAM3:**
+```bash
+cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3
+export LD_LIBRARY_PATH=/home/raj/Documents/Projects/system_software/pangolin/install/lib:/home/raj/Documents/Projects/system_software/lib:/home/raj/Documents/Projects/system_software/lib/opencv4/3rdparty:$LD_LIBRARY_PATH
+./Examples/Monocular-Inertial/mono_inertial_euroc \
+  ./Vocabulary/ORBvoc.txt \
+  ./Examples/Monocular-Inertial/EuRoC.yaml \
+  /home/raj/Documents/Projects/datasets/EuRoC/V101 \
+  ./Examples/Monocular-Inertial/EuRoC_TimeStamps/V101.txt \
+  dataset-V101_mono_inertial &
+```
+
+**Launch Tracy GUI:**
+```bash
+/home/raj/Documents/Projects/system_software/bin/tracy
+```
+Click **"Connect"** → Enter `127.0.0.1:8086` → Connected!
+
+**Verify Connection:**
+```bash
+ss -tln | grep 8086  # Should show LISTEN state
+```
 
 ### Tracy Profiling Zones Added
 
@@ -283,26 +344,19 @@ The codebase now includes comprehensive profiling for performance analysis:
 - `RAJ_DescriptorComparisons` - Descriptor comparisons made
 - `RAJ_FinalMatches` - Matches found by SearchByProjection
 
-### Running with Visualization
+### Tracy Profiling Results
 
-Same command as before works with all profiling zones:
+**What You'll See in Tracy:**
+- **Tracking Thread:** Track() loop, IMU Preintegration, TrackWithMotionModel, pose estimation
+- **LocalMapping Thread:** ProcessNewKeyFrame, CreateNewMapPoints, Local Inertial BA
+- **LoopClosing Thread:** Loop Detection, Map Merge operations
+- **RAJ_ Zones:** SearchLocalPoints breakdown showing bottlenecks
+- **Performance Plots:** VisibleMapPoints, SearchRadius, MatchesFound metrics
 
-```bash
-cd /home/raj/Documents/Projects/xr_slam_sprint/ORB_SLAM3 && \
-export LD_LIBRARY_PATH=/home/raj/Documents/Projects/system_software/pangolin/install/lib:/home/raj/Documents/Projects/system_software/lib:/home/raj/Documents/Projects/system_software/lib/opencv4/3rdparty:$LD_LIBRARY_PATH && \
-./Examples/Monocular-Inertial/mono_inertial_euroc \
-  ./Vocabulary/ORBvoc.txt \
-  ./Examples/Monocular-Inertial/EuRoC.yaml \
-  /home/raj/Documents/Projects/datasets/EuRoC/V101 \
-  ./Examples/Monocular-Inertial/EuRoC_TimeStamps/V101.txt \
-  dataset-V101_mono_inertial
-```
-
-**Expected behavior:**
-- Pangolin visualization windows appear (3D map view + current frame)
-- Tracy profiling zones active (~0.02% overhead when profiler not connected)
-- Map initializes with ~339-487 points
-- Processes full V101 sequence (2804 poses, ~302 KFs)
+**Performance Overhead:**
+- ~0.02% when Tracy GUI not connected (on-demand mode)
+- Minimal impact during live profiling
+- No overhead when `TRACY_ENABLE` not defined
 
 ---
 
