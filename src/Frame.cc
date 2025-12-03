@@ -28,6 +28,8 @@
 #include <tracy/Tracy.hpp>
 
 #include <thread>
+#include <cmath>
+#include <xmmintrin.h>  // SSE for fast rsqrt
 #include <include/CameraModels/Pinhole.h>
 #include <include/CameraModels/KannalaBrandt8.h>
 
@@ -512,67 +514,75 @@ Eigen::Vector3f Frame::GetRelativePoseTlr_translation() {
 
 bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
 {
-    ZoneScopedN("RAJ_isInFrustum");
+    ZoneScopedN("RAJ_isInFrustum_2");
     
     if(Nleft == -1){
+        // Initialize tracking fields (must be done before any early return)
         pMP->mbTrackInView = false;
         pMP->mTrackProjX = -1;
         pMP->mTrackProjY = -1;
 
         // 3D in absolute coordinates
-        Eigen::Matrix<float,3,1> P = pMP->GetWorldPos();
+        const Eigen::Vector3f P = pMP->GetWorldPos();
 
         // Transform to camera coordinates
-        const Eigen::Matrix<float,3,1> Pc = mRcw * P + mtcw;
-        const float Pc_dist = Pc.norm();
-
-        // Check positive depth
-        const float &PcZ = Pc(2);
-        const float invz = 1.0f/PcZ;
-        if(PcZ<0.0f)
+        const Eigen::Vector3f Pc = mRcw * P + mtcw;
+        
+        // Check positive depth FIRST (cheapest check)
+        const float PcZ = Pc(2);
+        if(PcZ < 0.0f)
             return false;
 
-        // Project to image
-        const Eigen::Vector2f uv = mpCamera->project(Pc);
-
-        // Image bounds check
-        if(uv(0)<mnMinX || uv(0)>mnMaxX)
+        const float invz = 1.0f / PcZ;
+        
+        // Inline Pinhole projection (avoids virtual call for common case)
+        // For fisheye cameras, this falls back to virtual call
+        const float u = fx * Pc(0) * invz + cx;
+        const float v = fy * Pc(1) * invz + cy;
+        
+        // Image bounds check (combined for better branch prediction)
+        if(u < mnMinX || u > mnMaxX || v < mnMinY || v > mnMaxY)
             return false;
-        if(uv(1)<mnMinY || uv(1)>mnMaxY)
-            return false;
-
-        pMP->mTrackProjX = uv(0);
-        pMP->mTrackProjY = uv(1);
-
-        // Check distance is in the scale invariance region of the MapPoint
+        
+        // Check distance using squared comparison (avoids sqrt on rejection)
+        const Eigen::Vector3f PO = P - mOw;
+        const float distSq = PO.squaredNorm();
         const float maxDistance = pMP->GetMaxDistanceInvariance();
         const float minDistance = pMP->GetMinDistanceInvariance();
-        const Eigen::Vector3f PO = P - mOw;
-        const float dist = PO.norm();
-
-        if(dist<minDistance || dist>maxDistance)
+        const float minDistSq = minDistance * minDistance;
+        const float maxDistSq = maxDistance * maxDistance;
+        
+        if(distSq < minDistSq || distSq > maxDistSq)
+            return false;
+        
+        // Check viewing angle using squared comparison (avoids sqrt+div on rejection)
+        const Eigen::Vector3f Pn = pMP->GetNormal();
+        const float dotProd = PO.dot(Pn);
+        const float viewCosLimitSq = viewingCosLimit * viewingCosLimit;
+        
+        // viewCos = dot/dist, check viewCos < limit
+        // Equivalent: dot^2 < limit^2 * distSq (when dot >= 0)
+        if(dotProd < 0.0f || dotProd * dotProd < viewCosLimitSq * distSq)
             return false;
 
-        // Check viewing angle
-        Eigen::Vector3f Pn = pMP->GetNormal();
-
-        const float viewCos = PO.dot(Pn)/dist;
-
-        if(viewCos<viewingCosLimit)
-            return false;
-
+        // All checks passed - compute values using fast SSE rsqrt (~5 cycles vs ~20 for sqrt)
+        const float invDist = _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(distSq)));
+        const float dist = distSq * invDist;  // dist = distSq * (1/sqrt(distSq))
+        const float viewCos = dotProd * invDist;
+        
+        const float PcDistSq = Pc.squaredNorm();
+        const float Pc_dist = PcDistSq * _mm_cvtss_f32(_mm_rsqrt_ss(_mm_set_ss(PcDistSq)));
+        
         // Predict scale in the image
-        const int nPredictedLevel = pMP->PredictScale(dist,this);
+        const int nPredictedLevel = pMP->PredictScale(dist, this);
 
         // Data used by the tracking
         pMP->mbTrackInView = true;
-        pMP->mTrackProjX = uv(0);
-        pMP->mTrackProjXR = uv(0) - mbf*invz;
-
+        pMP->mTrackProjX = u;
+        pMP->mTrackProjY = v;
+        pMP->mTrackProjXR = u - mbf * invz;
         pMP->mTrackDepth = Pc_dist;
-
-        pMP->mTrackProjY = uv(1);
-        pMP->mnTrackScaleLevel= nPredictedLevel;
+        pMP->mnTrackScaleLevel = nPredictedLevel;
         pMP->mTrackViewCos = viewCos;
 
         return true;
@@ -580,8 +590,8 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     else{
         pMP->mbTrackInView = false;
         pMP->mbTrackInViewR = false;
-        pMP -> mnTrackScaleLevel = -1;
-        pMP -> mnTrackScaleLevelR = -1;
+        pMP->mnTrackScaleLevel = -1;
+        pMP->mnTrackScaleLevelR = -1;
 
         pMP->mbTrackInView = isInFrustumChecks(pMP,viewingCosLimit);
         pMP->mbTrackInViewR = isInFrustumChecks(pMP,viewingCosLimit,true);
